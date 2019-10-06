@@ -25,6 +25,8 @@ import string
 import astropy.io.fits as fits
 import datetime
 import os
+import h5py
+import sys
 
 import ehtim.io.writeData
 import ehtim.io.oifits
@@ -35,7 +37,9 @@ from ehtim.observing.obs_helpers import *
 ##################################################################################################
 # Image IO
 ##################################################################################################
+
 def save_im_txt(im, fname, mjd=False, time=False):
+
     """Save image data to text file.
 
        Args:
@@ -172,6 +176,66 @@ def save_im_fits(im, fname, mjd=False, time=False):
 # Movie IO
 ##################################################################################################
 
+def save_mov_hdf5(mov, fname, mjd=False):
+    """Save movie data to an hdf5 file.
+
+       Args:
+            fname (str): basename of output fits file
+            mjd (int): MJD of saved movie
+
+       Returns:
+    """
+
+    # TODO: Currently only supports one polarization!
+    with h5py.File(fname, 'w') as file:
+
+
+#        if sys.version_info > (3,0):
+#            dt  =  h5py.special_dtype(vlen=str)
+#        else:
+#            dt = dtype=h5py.special_dtype(vlen=unicode))
+
+        #dt = dtype=h5py.special_dtype(vlen=bytes))
+        head = file.create_dataset('header', (0,), dtype="S10")
+
+        if mjd==False: 
+            mjd=mov.mjd
+
+#        head.attrs['mjd'] = str(mjd)
+#        head.attrs['psize'] = str(mov.psize)
+#        head.attrs['source'] = str(mov.source)
+#        head.attrs['ra'] = str(mov.ra)
+#        head.attrs['dec'] = str(mov.dec)
+#        head.attrs['rf'] = str(mov.rf)
+#        head.attrs['polrep'] = str(mov.polrep)
+#        head.attrs['pol_prim'] = str(mov.pol_prim)
+
+        head.attrs['mjd'] = np.string_(str(mjd))
+        head.attrs['psize'] = np.string_(str(mov.psize))
+        head.attrs['source'] = np.string_(str(mov.source))
+        head.attrs['ra'] = np.string_(str(mov.ra))
+        head.attrs['dec'] = np.string_(str(mov.dec))
+        head.attrs['rf'] = np.string_(str(mov.rf))
+        head.attrs['polrep'] = np.string_(str(mov.polrep))
+        head.attrs['pol_prim'] = np.string_(str(mov.pol_prim))
+
+        name = 'times'
+        times = mov.times
+        dset = file.create_dataset(name, data=times, dtype='f8')
+
+        name = mov.pol_prim
+        frames = mov.frames.reshape((mov.nframes, mov.ydim, mov.xdim))
+        dset = file.create_dataset(name, data=frames, dtype='f8')
+        
+        for pol in list(mov._movdict.keys()):
+            if pol==mov.pol_prim: 
+                continue
+            polframes = mov._movdict[pol]
+            if len(polframes):
+                polframes = polframes.reshape((mov.nframes, mov.ydim, mov.xdim))
+                dset = file.create_dataset(pol, data=polframes, dtype='f8')
+    return 
+
 def save_mov_fits(mov, fname, mjd=False):
     """Save movie data to series of fits files.
 
@@ -185,7 +249,7 @@ def save_mov_fits(mov, fname, mjd=False):
     if mjd==False: mjd=mov.mjd
 
     for i in range(mov.nframes):
-        time_frame = mov.start_hr + i*mov.framedur/3600.
+        time_frame = mov.times[i]
         fname_frame = fname + "%05d" % i
         print ('saving file '+fname_frame)
         frame_im = mov.get_frame(i)
@@ -206,7 +270,7 @@ def save_mov_txt(mov, fname, mjd=False):
     if mjd==False: mjd=mov.mjd
 
     for i in range(mov.nframes):
-        time_frame = mov.start_hr + i*mov.framedur/3600.
+        time_frame = mov.times[i]
         fname_frame = fname + "%05d" % i
         print ('saving file '+fname_frame)
         frame_im = mov.get_frame(i)
@@ -253,17 +317,23 @@ def save_array_txt(arr, fname):
 # Observation IO
 ##################################################################################################
 def save_obs_txt(obs, fname):
+
     """Save the observation data in a text file.
     """
+
+    # output times must be in utc
+    obs = obs.switch_timetype(timetype_out='UTC')
 
     # Get the necessary data and the header
     if obs.polrep=='stokes':
         outdata = obs.unpack(['time', 'tint', 't1', 't2','tau1','tau2',
-                               'u', 'v', 'amp', 'phase', 'qamp', 'qphase', 'uamp', 'uphase', 'vamp', 'vphase',
+                               'u', 'v', 'amp', 'phase', 'qamp', 'qphase', 'uamp', 'uphase', 
+                               'vamp', 'vphase',
                                'sigma', 'qsigma', 'usigma', 'vsigma'])
     elif obs.polrep=='circ':
         outdata = obs.unpack(['time', 'tint', 't1', 't2','tau1','tau2',
-                               'u', 'v', 'rramp', 'rrphase', 'llamp', 'llphase', 'rlamp', 'rlphase', 'lramp', 'lrphase',
+                               'u', 'v', 'rramp', 'rrphase', 'llamp', 'llphase', 'rlamp', 'rlphase',
+                               'lramp', 'lrphase',
                                'rrsigma', 'llsigma', 'rlsigma', 'lrsigma'])
 
     else: raise Exception("obs.polrep not 'stokes' or 'circ'!")
@@ -286,13 +356,14 @@ def save_obs_txt(obs, fname):
             )
 
     for i in range(len(obs.tarr)):
-        head += ("%-8s %15.5f  %15.5f  %15.5f  %8.2f   %8.2f  %5.2f   %5.2f   %5.2f  %8.4f %8.4f %8.4f %8.4f \n" % (obs.tarr[i]['site'],
-                                                                  obs.tarr[i]['x'], obs.tarr[i]['y'], obs.tarr[i]['z'],
-                                                                  obs.tarr[i]['sefdr'], obs.tarr[i]['sefdl'],
-                                                                  obs.tarr[i]['fr_par'], obs.tarr[i]['fr_elev'], obs.tarr[i]['fr_off'],
-                                                                  (obs.tarr[i]['dr']).real, (obs.tarr[i]['dr']).imag,
-                                                                  (obs.tarr[i]['dl']).real, (obs.tarr[i]['dl']).imag
-                                                                 ))
+        head += ("%-8s %15.5f  %15.5f  %15.5f  %8.2f   %8.2f  %5.2f   %5.2f   %5.2f  %8.4f %8.4f %8.4f %8.4f \n" % 
+                 (obs.tarr[i]['site'],
+                  obs.tarr[i]['x'], obs.tarr[i]['y'], obs.tarr[i]['z'],
+                  obs.tarr[i]['sefdr'], obs.tarr[i]['sefdl'],
+                  obs.tarr[i]['fr_par'], obs.tarr[i]['fr_elev'], obs.tarr[i]['fr_off'],
+                  (obs.tarr[i]['dr']).real, (obs.tarr[i]['dr']).imag,
+                  (obs.tarr[i]['dl']).real, (obs.tarr[i]['dl']).imag
+                 ))
 
     if obs.polrep=='stokes':
         head += (
@@ -321,9 +392,13 @@ def save_obs_txt(obs, fname):
 
 
 def save_obs_uvfits(obs, fname, force_singlepol=None, polrep_out='circ'):
+
     """Save observation data to uvfits.
        To save Stokes I as a single polarization (e.g., only RR) set force_singlepol='R' or 'L'
     """
+
+    # output times must be in utc
+    obs = obs.switch_timetype(timetype_out='UTC')
 
     if polrep_out=='circ':
         obs = obs.switch_polrep('circ')
@@ -720,6 +795,7 @@ def save_obs_uvfits(obs, fname, force_singlepol=None, polrep_out='circ'):
     return
 
 def save_obs_oifits(obs, fname, flux=1.0):
+
     """ Save visibility data to oifits
         Polarization data is NOT saved
         Antenna diameter currently incorrect and the exact times are not correct in the datetime object
@@ -728,6 +804,9 @@ def save_obs_oifits(obs, fname, flux=1.0):
 
     #TODO: Add polarization to oifits??
     print('Warning: save_oifits does NOT save polarimetric visibility data!')
+
+    # output times must be in utc
+    obs = obs.switch_timetype(timetype_out='UTC')
 
     if (obs.polrep!='stokes'):
         raise Exception("save_obs_oifits only works with polrep 'stokes'!")
@@ -783,7 +862,8 @@ def save_obs_oifits(obs, fname, flux=1.0):
 
     # convert times to datetime objects
     timeClosure = biarr['time']
-    dttimeClosure = np.array([datetime.datetime.utcfromtimestamp(x*60.0*60.0) for x in timeClosure]); #TODO: these do not correspond to the acutal times
+    dttimeClosure = np.array([datetime.datetime.utcfromtimestamp(x*60.0*60.0) 
+for x in timeClosure]); #TODO: these do not correspond to the acutal times
 
     # convert antenna name strings to number identifiers
     biarr_ant1 = ehtim.io.writeData.convertStrings(biarr['t1'], union)
@@ -826,13 +906,14 @@ def save_dtype_txt(obs, fname, dtype='cphase'):
             )
 
     for i in range(len(obs.tarr)):
-        head += ("%-8s %15.5f  %15.5f  %15.5f  %8.2f   %8.2f  %5.2f   %5.2f   %5.2f  %8.4f %8.4f %8.4f %8.4f \n" % (obs.tarr[i]['site'],
-                                                                  obs.tarr[i]['x'], obs.tarr[i]['y'], obs.tarr[i]['z'],
-                                                                  obs.tarr[i]['sefdr'], obs.tarr[i]['sefdl'],
-                                                                  obs.tarr[i]['fr_par'], obs.tarr[i]['fr_elev'], obs.tarr[i]['fr_off'],
-                                                                  (obs.tarr[i]['dr']).real, (obs.tarr[i]['dr']).imag,
-                                                                  (obs.tarr[i]['dl']).real, (obs.tarr[i]['dl']).imag
-                                                                 ))
+        head += ("%-8s %15.5f  %15.5f  %15.5f  %8.2f   %8.2f  %5.2f   %5.2f   %5.2f  %8.4f %8.4f %8.4f %8.4f \n" % 
+                 (obs.tarr[i]['site'],
+                  obs.tarr[i]['x'], obs.tarr[i]['y'], obs.tarr[i]['z'],
+                  obs.tarr[i]['sefdr'], obs.tarr[i]['sefdl'],
+                  obs.tarr[i]['fr_par'], obs.tarr[i]['fr_elev'], obs.tarr[i]['fr_off'],
+                  (obs.tarr[i]['dr']).real, (obs.tarr[i]['dr']).imag,
+                  (obs.tarr[i]['dl']).real, (obs.tarr[i]['dl']).imag
+                 ))
 
     if dtype=='cphase':
         outdata = obs.cphase

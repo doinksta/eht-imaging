@@ -40,6 +40,11 @@ RF_DEFAULT = 230e9
 MJD_DEFAULT = 51544
 PULSE_DEFAULT = trianglePulse2D
 
+# movie parameters
+INTERP_DEFAULT = 'linear'
+BOUNDS_ERROR = True  # When False, movie will return NEAREST NEIGHBOR frames 
+                     # for times beyond [movie.start_hr, movie.stop_hr]
+
 # Telescope elevation cuts (degrees)
 ELEV_LOW = 10.0
 ELEV_HIGH = 85.0
@@ -97,6 +102,10 @@ DTCAMP = [('time','f8'),('t1','U32'),('t2','U32'),('t3','U32'),('t4','U32'),
           ('u3','f8'),('v3','f8'),('u4','f8'),('v4','f8'),
           ('camp','f8'),('sigmaca','f8')]
 
+DTCPHASEDIAG = [('time','f8'),('cphase','f8'),('sigmacp','f8'),('triangles','O'),('u','O'),('v','O'),('tform_matrix','O')]
+
+DTLOGCAMPDIAG = [('time','f8'),('camp','f8'),('sigmaca','f8'),('quadrangles','O'),('u','O'),('v','O'),('tform_matrix','O')]
+
 DTCAL = [('time','f8'), ('rscale','c16'), ('lscale','c16')]
 
 DTSCANS = [('time','f8'),('interval','f8'),('startvis','f8'),('endvis','f8')]
@@ -122,62 +131,70 @@ FIELDS = ['time','time_utc','time_gmst',
           'sigma_phase','qsigma_phase','usigma_phase','vsigma_phase',
           'psigma_phase','msigma_phase',
           'pvis','pamp','pphase','psnr',
+          'evis','eamp','ephase','esnr',
+          'bvis','bamp','bphase','bsnr',
           'm','mamp','mphase','msnr'
           'rrvis','rramp','rrphase','rrsnr','rrsigma','rrsigma_phase',
           'llvis','llamp','llphase','llsnr','llsigma','llsigma_phase'
           'rlvis','rlamp','rlphase','rlsnr','rlsigma','rlsigma_phase'
-          'lrvis','lramp','lrphase','lrsnr','lrsigma','lrsigma_phase']
-FIELDS_AMPS = ["amp", "qamp", "uamp","vamp","pamp","mamp","rramp","llamp","rlamp","lramp"]
-FIELDS_SIGS = ["sigma","qsigma","usigma","vsigma","psigma","msigma","rrsigma","llsigma","rlsigma","lrsigma"]
-FIELDS_PHASE = ["phase", "qphase", "uphase", "vphase","pphase", "mphase","rrphase","llphase","lrphase","rlphase"]
+          'lrvis','lramp','lrphase','lrsnr','lrsigma','lrsigma_phase'
+          'rrllvis','rrllamp','rrllphase','rrllsnr','rrllsigma','rrllsigma_phase']
+
+FIELDS_AMPS = ["amp", "qamp", "uamp","vamp","pamp","mamp","rramp","llamp","rlamp","lramp","rrllamp"]
+FIELDS_SIGS = ["sigma","qsigma","usigma","vsigma","psigma","msigma","rrsigma","llsigma","rlsigma","lrsigma","rrllsigma"]
+FIELDS_PHASE = ["phase", "qphase", "uphase", "vphase","pphase", "mphase","rrphase","llphase","lrphase","rlphase","rrllphase"]
 FIELDS_SIGPHASE = ["sigma_phase","qsigma_phase","usigma_phase","vsigma_phase","psigma_phase","msigma_phase",
-                   "rrsigma_phase","llsigma_phase","rlsigma_phase","lrsigma_phase"]
-FIELDS_SNRS = ["snr", "qsnr", "usnr", "vsnr", "psnr", "msnr","rrsnr","llsnr","rlsnr","lrsnr"]
+                   "rrsigma_phase","llsigma_phase","rlsigma_phase","lrsigma_phase","rrllsigma_phase"]
+FIELDS_SNRS = ["snr", "qsnr", "usnr", "vsnr", "psnr", "msnr","rrsnr","llsnr","rlsnr","lrsnr","rrllsnr"]
 
 #plotting
 MARKERSIZE = 3
 
 FIELD_LABELS = {'time':'Time','time_utc':'Time (UTC)','time_gmst':'Time (GMST)',
-          'tint':'Integration Time','u':r'$u$','v':r'$v$','uvdist':r'$u-v$ Distance',
-          't1':'Site 1','t2':'Site 2','tau1':r'$\tau_1$','tau2':r'$\tau_2$',
-          'el1':r'Elevation Angle$_1$','el2':r'Elevation Angle$_2$',
-          'hr_ang1':r'Hour Angle$_1$','hr_ang2':r'Hour Angle$_2$', 
-          'par_ang1':r'Parallactic Angle$_1$','par_ang2':r'Parallactic Angle$_2$',
-          'vis':'Visibility','amp':'Amplitude','phase':'Phase','snr':'SNR',
-          'qvis':'Q-Visibility','qamp':'Q-Amplitude','qphase':'Q-Phase','qsnr':'Q-SNR',
-          'uvis':'U-Visibility','uamp':'U-Amplitude','uphase':'U-Phase','usnr':'U-SNR',
-          'vvis':'V-Visibility','vamp':'V-Amplitude','vphase':'V-Phase','vsnr':'V-SNR',
-          'sigma':r'$\sigma$','qsigma':r'$\sigma_{Q}$','usigma':r'$\sigma_{U}$',
-          'vsigma':r'$\sigma_{V}$',
-          'sigma_phase':r'$\sigma_{phase}$','qsigma_phase':r'$\sigma_{Q phase}$',
-          'usigma_phase':r'$\sigma_{U phase}$','vsigma_phase':r'$\sigma_{V phase}$',
-          'psigma_phase':r'$\sigma_{P phase}$','msigma_phase':r'$\sigma_{m phase}$',
-          'pvis':r'P-Visibility','pamp':r'P-Amplitude','pphase':'P-Phase','psnr':'P-SNR',
-          'mvis':r'm-Visibility','mamp':r'm-Amplitude','mphase':'m-Phase','msnr':'m-SNR',
-          'rrvis':r'RR-Visibility','rramp':r'RR-Amplitude','rrphase':'RR-Phase','rrsnr':'RR-SNR',
-          'rrsigma':r'$\sigma_{RR}$','rrsigma_phase':r'$\sigma_{RR phase}$',
-          'llvis':r'LL-Visibility','llamp':r'LL-Amplitude','llphase':'LL-Phase','llsnr':'LL-SNR',
-          'llsigma':r'$\sigma_{LL}$','llsigma_phase':r'$\sigma_{LL phase}$',
-          'rlvis':r'RL-Visibility','rlamp':r'RL-Amplitude','rlphase':'RL-Phase','rlsnr':'RL-SNR',
-          'rlsigma':r'$\sigma_{RL}$','rlsigma_phase':r'$\sigma_{RL phase}$',
-          'lrvis':r'LR-Visibility','lramp':r'LR-Amplitude','lrphase':'LR-Phase','lrsnr':'LR-SNR',
-          'lrsigma':r'$\sigma_{LR}$','lrsigma_phase':r'$\sigma_{LR phase}$'}
+                  'tint':'Integration Time','u':r'$u$','v':r'$v$','uvdist':r'$u-v$ Distance',
+                  't1':'Site 1','t2':'Site 2','tau1':r'$\tau_1$','tau2':r'$\tau_2$',
+                  'el1':r'Elevation Angle$_1$','el2':r'Elevation Angle$_2$',
+                  'hr_ang1':r'Hour Angle$_1$','hr_ang2':r'Hour Angle$_2$', 
+                  'par_ang1':r'Parallactic Angle$_1$','par_ang2':r'Parallactic Angle$_2$',
+                  'vis':'Visibility','amp':'Amplitude','phase':'Phase','snr':'SNR',
+                  'qvis':'Q-Visibility','qamp':'Q-Amplitude','qphase':'Q-Phase','qsnr':'Q-SNR',
+                  'uvis':'U-Visibility','uamp':'U-Amplitude','uphase':'U-Phase','usnr':'U-SNR',
+                  'vvis':'V-Visibility','vamp':'V-Amplitude','vphase':'V-Phase','vsnr':'V-SNR',
+                  'sigma':r'$\sigma$','qsigma':r'$\sigma_{Q}$','usigma':r'$\sigma_{U}$',
+                  'vsigma':r'$\sigma_{V}$',
+                  'sigma_phase':r'$\sigma_{phase}$','qsigma_phase':r'$\sigma_{Q phase}$',
+                  'usigma_phase':r'$\sigma_{U phase}$','vsigma_phase':r'$\sigma_{V phase}$',
+                  'psigma_phase':r'$\sigma_{P phase}$','msigma_phase':r'$\sigma_{m phase}$',
+                  'pvis':r'P-Visibility','pamp':r'P-Amplitude','pphase':'P-Phase','psnr':'P-SNR',
+                  'mvis':r'm-Visibility','mamp':r'm-Amplitude','mphase':'m-Phase','msnr':'m-SNR',
+                  'evis':r'E-Visibility','eamp':r'E-Amplitude','ephase':'E-Phase','esnr':'E-SNR',
+                  'bvis':r'B-Visibility','bamp':r'B-Amplitude','bphase':'B-Phase','bsnr':'B-SNR',
+                  'rrvis':r'RR-Visibility','rramp':r'RR-Amplitude','rrphase':'RR-Phase','rrsnr':'RR-SNR',
+                  'rrsigma':r'$\sigma_{RR}$','rrsigma_phase':r'$\sigma_{RR phase}$',
+                  'llvis':r'LL-Visibility','llamp':r'LL-Amplitude','llphase':'LL-Phase','llsnr':'LL-SNR',
+                  'llsigma':r'$\sigma_{LL}$','llsigma_phase':r'$\sigma_{LL phase}$',
+                  'rlvis':r'RL-Visibility','rlamp':r'RL-Amplitude','rlphase':'RL-Phase','rlsnr':'RL-SNR',
+                  'rlsigma':r'$\sigma_{RL}$','rlsigma_phase':r'$\sigma_{RL phase}$',
+                  'lrvis':r'LR-Visibility','lramp':r'LR-Amplitude','lrphase':'LR-Phase','lrsnr':'LR-SNR',
+                  'lrsigma':r'$\sigma_{LR}$','lrsigma_phase':r'$\sigma_{LR phase}$',
+                  'rrllvis':r'RR/LL-Visibility','rrllamp':r'RR/LL-Amplitude','rrllphase':'RR/LL-Phase','rrllsnr':'RR/LL-SNR',
+                  'rrllsigma':r'$\sigma_{RR/LL}$','rrllsigma_phase':r'$\sigma_{RR/LL phase}$'}
 
 #Seaborn Colors from Maciek
 #['dodgerblue','tomato','blueviolet','olivedrab','orange','saddlebrown','mediumblue','red','cyan','magenta','darkgreen','tan','k']
 SCOLORS = [(0.11764705882352941, 0.5647058823529412, 1.0),
-             (1.0, 0.38823529411764707, 0.2784313725490196),
-             (0.5411764705882353, 0.16862745098039217, 0.8862745098039215),
-             (0.4196078431372549, 0.5568627450980392, 0.13725490196078433),
-             (1.0, 0.6470588235294118, 0.0),
-             (0.5450980392156862, 0.27058823529411763, 0.07450980392156863),
-             (0.0, 0.0, 0.803921568627451),
-             (1.0, 0.0, 0.0),
-             (0.0, 1.0, 1.0),
-             (1.0, 0.0, 1.0),
-             (0.0, 0.39215686274509803, 0.0),
-             (0.8235294117647058, 0.7058823529411765, 0.5490196078431373),
-             (0.0, 0.0, 0.0)]
+           (1.0, 0.38823529411764707, 0.2784313725490196),
+           (0.5411764705882353, 0.16862745098039217, 0.8862745098039215),
+           (0.4196078431372549, 0.5568627450980392, 0.13725490196078433),
+           (1.0, 0.6470588235294118, 0.0),
+           (0.5450980392156862, 0.27058823529411763, 0.07450980392156863),
+           (0.0, 0.0, 0.803921568627451),
+           (1.0, 0.0, 0.0),
+           (0.0, 1.0, 1.0),
+           (1.0, 0.0, 1.0),
+           (0.0, 0.39215686274509803, 0.0),
+           (0.8235294117647058, 0.7058823529411765, 0.5490196078431373),
+           (0.0, 0.0, 0.0)]
 
 
 #miscellaneous functions

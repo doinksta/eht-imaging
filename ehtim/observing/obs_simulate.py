@@ -592,7 +592,8 @@ def make_jones(obs, opacitycal=True, ampcal=True, phasecal=True, dcal=True,
 
     # Save a calibration table with the synthetic gains and dterms added
     if caltable_path and len(datatables)>0:
-        caltable = ehtim.caltable.Caltable(obs_tmp.ra, obs_tmp.dec, obs_tmp.rf, obs_tmp.bw, datatables, obs_tmp.tarr, source=obs_tmp.source, mjd=obs_tmp.mjd, timetype=obs_tmp.timetype)
+        caltable = ehtim.caltable.Caltable(obs_tmp.ra, obs_tmp.dec, obs_tmp.rf, obs_tmp.bw, datatables, obs_tmp.tarr, 
+                                           source=obs_tmp.source, mjd=obs_tmp.mjd, timetype=obs_tmp.timetype)
         caltable.save_txt(obs_tmp, datadir=caltable_path+'_simdata_caltable')
 
     return out
@@ -689,7 +690,8 @@ def make_jones_inverse(obs, opacitycal=True, dcal=True, frcal=True):
             fr_angle = tarr[i]['fr_elev']*el_angles + tarr[i]['fr_par']*par_angles + tarr[i]['fr_off']*DEGREE
 
         elif frcal and not dcal:
-            # If the field rotation angle has been removed but leakage hasn't, we still need to rotate the leakage terms appropriately (by *twice* the field rotation angle)
+            # If the field rotation angle has been removed but leakage hasn't, 
+            # we still need to rotate the leakage terms appropriately (by *twice* the field rotation angle)
             fr_angle_D = 2.0*(tarr[i]['fr_elev']*el_angles + tarr[i]['fr_par']*par_angles + tarr[i]['fr_off']*DEGREE)
 
         # Assemble the inverse Jones Matrices and save to dictionary
@@ -825,9 +827,9 @@ def apply_jones_inverse(obs, opacitycal=True, dcal=True, frcal=True, verbose=Tru
     """Apply inverse jones matrices to an observation
 
        Args:
-           obs (Obsdata): the original observation
-           dcal (bool): if False, time-dependent gaussian errors are added to D-terms.
-           frcal (bool): if False, feed rotation angle terms are added to Jones matrices.
+           opacitycal (bool): if False, estimated opacity terms are applied in the inverse gains
+           dcal (bool): if False, estimated inverse d-terms are applied to the inverse Jones matrices
+           frcal (bool): if False, inverse feed rotation angle terms are applied to Jones matrices.
 
        Returns:
            (np.array): an observation data array

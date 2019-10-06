@@ -121,6 +121,7 @@ def compute_uv_coordinates(array, site1, site2, time, mjd, ra, dec, rf, timetype
         coord1space = np.array(coord1space)
         coord1[spacemask1] = coord1space
 
+    # use spacecraft ephemeris to get position of site 2
     spacemask2 = [np.all(coord == (0.,0.,0.)) for coord in coord2]
     if np.any(spacemask2):
         if timetype=='GMST':
@@ -639,8 +640,14 @@ def ftmatrix(pdim, xdim, ydim, uvlist, pulse=PULSE_DEFAULT, mask=[]):
     xlist = np.arange(0,-xdim,-1)*pdim + (pdim*xdim)/2.0 - pdim/2.0
     ylist = np.arange(0,-ydim,-1)*pdim + (pdim*ydim)/2.0 - pdim/2.0
 
+    # original sign convention
+    #ftmatrices = [pulse(2*np.pi*uv[0], 2*np.pi*uv[1], pdim, dom="F") * 
+    #              np.outer(np.exp(-2j*np.pi*ylist*uv[1]), np.exp(-2j*np.pi*xlist*uv[0])) for uv in uvlist] #list of matrices at each freq
+   
     # changed the sign convention to agree with BU data (Jan 2017)
-    ftmatrices = [pulse(2*np.pi*uv[0], 2*np.pi*uv[1], pdim, dom="F") * np.outer(np.exp(2j*np.pi*ylist*uv[1]), np.exp(2j*np.pi*xlist*uv[0])) for uv in uvlist] #list of matrices at each freq
+    # this is correct for a u,v definition from site 1-2 as (x1-x2)/lambda
+    ftmatrices = [pulse(2*np.pi*uv[0], 2*np.pi*uv[1], pdim, dom="F") * 
+                  np.outer(np.exp(2j*np.pi*ylist*uv[1]), np.exp(2j*np.pi*xlist*uv[0])) for uv in uvlist] #list of matrices at each freq
     ftmatrices = np.reshape(np.array(ftmatrices), (len(uvlist), xdim*ydim))
 
     if len(mask):
@@ -728,22 +735,27 @@ def sigtype(datatype):
     elif datatype in ['uvis', 'uamp']: sigmatype='usigma'
     elif datatype in ['vvis', 'vamp']: sigmatype='vsigma'
     elif datatype in ['pvis', 'pamp']: sigmatype='psigma'
-    elif datatype in ['pvis', 'pamp']: sigmatype='psigma'
+    elif datatype in ['evis', 'eamp']: sigmatype='esigma'
+    elif datatype in ['bvis', 'bamp']: sigmatype='esigma'
     elif datatype in ['rrvis', 'rramp']: sigmatype='rrsigma'
     elif datatype in ['llvis', 'llamp']: sigmatype='llsigma'
     elif datatype in ['rlvis', 'rlamp']: sigmatype='rlsigma'
     elif datatype in ['lrvis', 'lramp']: sigmatype='lrsigma'
+    elif datatype in ['rrllvis', 'rrllamp']: sigmatype='rrllsigma'
     elif datatype in ['m', 'mamp']: sigmatype='msigma'
     elif datatype in ['phase']: sigmatype='sigma_phase'
     elif datatype in ['qphase']: sigmatype='qsigma_phase'
     elif datatype in ['uphase']: sigmatype='usigma_phase'
     elif datatype in ['vphase']: sigmatype='vsigma_phase'
     elif datatype in ['pphase']: sigmatype='psigma_phase'
+    elif datatype in ['ephase']: sigmatype='esigma_phase'
+    elif datatype in ['bphase']: sigmatype='bsigma_phase'
     elif datatype in ['mphase']: sigmatype='msigma_phase'
     elif datatype in ['rrphase']: sigmatype='rrsigma_phase'
     elif datatype in ['llphase']: sigmatype='llsigma_phase'
     elif datatype in ['rlphase']: sigmatype='rlsigma_phase'
     elif datatype in ['lrphase']: sigmatype='lrsigma_phase'
+    elif datatype in ['rrllphase']: sigmatype='rrllsigma_phase'
 
     else: sigmatype = False
 
@@ -816,16 +828,19 @@ def earthrot(vecs, thetas):
 
     # equal numbers of sites and angles
     if len(thetas) == len(vecs):
-        rotvec = np.array([np.dot(np.array(((np.cos(thetas[i]),-np.sin(thetas[i]),0),(np.sin(thetas[i]),np.cos(thetas[i]),0),(0,0,1))), vecs[i])
+        rotvec = np.array([np.dot(np.array(((np.cos(thetas[i]),-np.sin(thetas[i]),0),
+                                            (np.sin(thetas[i]),np.cos(thetas[i]),0),(0,0,1))), vecs[i])
                        for i in range(len(vecs))])
 
     # only one rotation angle, many sites
     elif len(thetas) == 1:
-        rotvec = np.array([np.dot(np.array(((np.cos(thetas[0]),-np.sin(thetas[0]),0),(np.sin(thetas[0]),np.cos(thetas[0]),0),(0,0,1))), vecs[i])
+        rotvec = np.array([np.dot(np.array(((np.cos(thetas[0]),-np.sin(thetas[0]),0),
+                                            (np.sin(thetas[0]),np.cos(thetas[0]),0),(0,0,1))), vecs[i])
                        for i in range(len(vecs))])
     # only one site, many angles
     elif len(vecs) == 1:
-        rotvec = np.array([np.dot(np.array(((np.cos(thetas[i]),-np.sin(thetas[i]),0),(np.sin(thetas[i]),np.cos(thetas[i]),0),(0,0,1))), vecs[0])
+        rotvec = np.array([np.dot(np.array(((np.cos(thetas[i]),-np.sin(thetas[i]),0),
+                                            (np.sin(thetas[i]),np.cos(thetas[i]),0),(0,0,1))), vecs[0])
                        for i in range(len(thetas))])
     else:
         raise Exception("Unequal numbers of vectors and angles in earthrot(vecs, thetas)!")
